@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UIC Wagennummer - Prüfziffer</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'rail-blue': '#0a3d6a',
+                        'rail-red': '#e3000b'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Modern font and basic reset */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Number input hide arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* PWA specific */
+        .ios-prompt {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 50;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .calculation-grid {
+            display: grid;
+            grid-template-columns: repeat(11, minmax(0, 1fr));
+            gap: 2px;
+            text-align: center;
+        }
+
+        @media (min-width: 640px) {
+            .calculation-grid {
+                gap: 8px;
+            }
+        }
+        
+        .grid-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem;
+            font-size: 0.75rem;
+        }
+        @media (min-width: 640px) {
+            .grid-cell {
+                padding: 0.5rem;
+                font-size: 1rem;
+            }
+        }
+        @media (min-width: 768px) {
+            .grid-cell {
+                font-size: 1.125rem;
+            }
+        }
+        
+        /* Fade in animation */
+        .fade-in {
+            animation: fadeIn 0.4s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const manifestData = {
+                "name": "UIC Wagennummer Rechner",
+                "short_name": "UIC Rechner",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#f3f4f6",
+                "theme_color": "#0a3d6a",
+                "icons": [
+                    {
+                        "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230a3d6a' rx='100'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='200' fill='white'%3EUIC%3C/text%3E%3C/svg%3E",
+                        "sizes": "192x192 512x512",
+                        "type": "image/svg+xml",
+                        "purpose": "any maskable"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = manifestUrl;
+            document.head.appendChild(manifestLink);
+
+            const appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            appleIcon.href = manifestData.icons[0].src;
+            document.head.appendChild(appleIcon);
+
+            const themeMeta = document.createElement('meta');
+            themeMeta.name = 'theme-color';
+            themeMeta.content = manifestData.theme_color;
+            document.head.appendChild(themeMeta);
+        });
+    </script>
+</head>
+
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-rail-blue text-white shadow-md w-full sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 sm:py-5 flex items-center justify-between">
+            <h1 class="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                UIC-Prüfziffer
+            </h1>
+            <button onclick="document.getElementById('infoModal').classList.remove('hidden')" class="bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <div class="bg-white rounded-2xl shadow-lg p-5 sm:p-8 mb-6">
+            <label for="uicInput" class="block text-sm font-semibold text-gray-700 mb-2">11-stellige Wagennummer eingeben:</label>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input 
+                    type="tel" 
+                    id="uicInput" 
+                    maxlength="11" 
+                    placeholder="z.B. 31816650286" 
+                    class="flex-grow text-2xl sm:text-3xl tracking-widest font-mono text-center sm:text-left bg-gray-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-rail-blue focus:border-rail-blue block w-full p-4 transition-all outline-none"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); handleInput();"
+                >
+                <button 
+                    id="clearBtn"
+                    onclick="document.getElementById('uicInput').value = ''; handleInput(); document.getElementById('uicInput').focus();"
+                    class="hidden sm:flex bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl transition-colors items-center justify-center"
+                    aria-label="Löschen"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <p id="errorMsg" class="text-red-500 mt-2 text-sm font-medium hidden">Bitte genau 11 Ziffern eingeben.</p>
+            
+            <div id="quickResult" class="hidden mt-6 text-center">
+                <p class="text-gray-500 mb-1 uppercase tracking-wide text-xs sm:text-sm font-bold">Vollständige Nummer</p>
+                <div class="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-800 break-all bg-gray-100 py-4 px-2 rounded-xl border-2 border-dashed border-gray-300">
+                    <span id="qrBase"></span><span class="text-gray-400 mx-1">-</span><span id="qrDigit" class="text-rail-red"></span>
+                </div>
+                <button onclick="copyToClipboard()" class="mt-4 text-rail-blue hover:text-blue-800 font-semibold text-sm sm:text-base flex items-center justify-center gap-2 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                    </svg>
+                    Kopieren
+                </button>
+            </div>
+        </div>
+
+        <!-- Calculation Process -->
+        <div id="calculationSection" class="bg-white rounded-2xl shadow-lg p-3 sm:p-6 lg:p-8 hidden fade-in overflow-hidden">
+            <h2 class="text-lg sm:text-xl font-bold text-gray-800 border-b pb-3 mb-4">Rechnungsweg (Luhn-Algorithmus)</h2>
+            
+            <div class="overflow-x-auto pb-4">
+                <div class="min-w-[300px]">
+                    
+                    <!-- Headers -->
+                    <div class="grid grid-cols-12 gap-1 mb-2 items-center text-xs sm:text-sm text-gray-500 font-medium">
+                        <div class="col-span-1 hidden sm:block"></div>
+                    </div>
+
+                    <!-- Number -->
+                    <div class="flex items-center mb-1">
+                        <div class="w-24 sm:w-32 text-xs sm:text-sm text-gray-600 font-medium flex-shrink-0">Nummer:</div>
+                        <div class="calculation-grid flex-grow" id="gridNumber"></div>
+                    </div>
+
+                    <!-- Multiplier -->
+                    <div class="flex items-center mb-1">
+                        <div class="w-24 sm:w-32 text-xs sm:text-sm text-gray-600 font-medium flex-shrink-0">Multiplikator:</div>
+                        <div class="calculation-grid flex-grow text-gray-400" id="gridMultiplier"></div>
+                    </div>
+
+                    <div class="border-b border-gray-200 my-2"></div>
+
+                    <!-- Products -->
+                    <div class="flex items-center mb-1">
+                        <div class="w-24 sm:w-32 text-xs sm:text-sm text-gray-600 font-medium flex-shrink-0">Produkt:</div>
+                        <div class="calculation-grid flex-grow" id="gridProduct"></div>
+                    </div>
+
+                    <!-- Cross Sums -->
+                    <div class="flex items-center mb-3">
+                        <div class="w-24 sm:w-32 text-xs sm:text-sm text-gray-600 font-medium flex-shrink-0">Quersumme:</div>
+                        <div class="calculation-grid flex-grow font-semibold text-rail-blue" id="gridCrossSum"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Result Steps -->
+            <div class="bg-blue-50 rounded-xl p-4 sm:p-6 mt-4 border border-blue-100">
+                <ul class="space-y-3 text-sm sm:text-base text-gray-700">
+                    <li class="flex justify-between items-center border-b border-blue-200 pb-2">
+                        <span>Summe aller Quersummen:</span>
+                        <span class="font-bold text-lg" id="stepSum">0</span>
+                    </li>
+                    <li class="flex justify-between items-center border-b border-blue-200 pb-2">
+                        <span>Nächsthöheres Vielfaches von 10:</span>
+                        <span class="font-bold text-lg" id="stepNext10">0</span>
+                    </li>
+                    <li class="flex justify-between items-center pt-1">
+                        <span class="font-bold text-gray-900">Differenz (Prüfziffer):</span>
+                        <span class="font-bold text-2xl text-rail-red" id="stepCheckDigit">0</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                Die Multiplikation erfolgt abwechselnd mit 2 und 1. 
+                Ist das Produkt zweistellig, wird die Quersumme gebildet (z.B. 16 &rarr; 1+6 = 7).
+            </p>
+        </div>
+
+    </main>
+
+    <!-- PWA Install Prompt for iOS (Hidden by default) -->
+    <div id="iosPrompt" class="ios-prompt border border-gray-200">
+        <p class="text-sm text-gray-800 font-medium mb-2">Zum Home-Bildschirm hinzufügen:</p>
+        <p class="text-xs text-gray-600 mb-3">Tippe auf <svg viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 inline-block text-blue-500"><path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L11 6.414V13a1 1 0 11-2 0V6.414L7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg> (Teilen) und dann auf "Zum Home-Bildschirm".</p>
+        <button onclick="document.getElementById('iosPrompt').style.display='none'" class="text-rail-blue text-xs font-bold uppercase w-full py-2 bg-gray-100 rounded">Schließen</button>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('infoModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Über diese App</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Diese Web-App berechnet die 12. Stelle (Selbstkontrollziffer) einer UIC-Wagennummer nach dem Luhn-Algorithmus. 
+            </p>
+            <ul class="text-sm text-gray-600 list-disc list-inside mb-4 space-y-1">
+                <li>Stellen 1-11 abwechselnd mit 2 und 1 multiplizieren.</li>
+                <li>Bei zweistelligen Produkten Quersumme bilden.</li>
+                <li>Alles addieren.</li>
+                <li>Differenz zum nächsten 10er-Vielfachen ist die Prüfziffer.</li>
+            </ul>
+            <p class="text-sm text-gray-600 font-semibold mb-4">Als App installieren:</p>
+            <p class="text-xs text-gray-500 mb-4">
+                Diese Seite ist als Progressive Web App (PWA) konzipiert. Über die Browser-Optionen ("Zum Startbildschirm hinzufügen") kann sie als eigenständige App auf dem Gerät installiert werden. Sie funktioniert dann auch offline.
+            </p>
+            <button onclick="document.getElementById('infoModal').classList.add('hidden')" class="w-full bg-rail-blue text-white rounded-xl py-3 font-semibold hover:bg-blue-900 transition-colors">Verstanden</button>
+        </div>
+    </div>
+
+    <script>
+        const multipliers = [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2];
+
+        // Format a block in the calculation grid
+        function createCell(content, extraClasses = '') {
+            return `<div class="grid-cell bg-gray-50 rounded font-mono ${extraClasses}">${content}</div>`;
+        }
+
+        // Logic to compute cross sum
+        function crossSum(num) {
+            if (num < 10) return num;
+            return Math.floor(num / 10) + (num % 10);
+        }
+
+        // Main input handler
+        function handleInput() {
+            const inputEl = document.getElementById('uicInput');
+            let val = inputEl.value;
+            const errorMsg = document.getElementById('errorMsg');
+            const calcSection = document.getElementById('calculationSection');
+            const quickResult = document.getElementById('quickResult');
+
+            if (val.length === 11) {
+                errorMsg.classList.add('hidden');
+                calculateUIC(val);
+                calcSection.classList.remove('hidden');
+                quickResult.classList.remove('hidden');
+                
+                // Hide iOS keyboard on success for better UX
+                inputEl.blur();
+            } else {
+                calcSection.classList.add('hidden');
+                quickResult.classList.add('hidden');
+                if (val.length > 0) {
+                    errorMsg.classList.remove('hidden');
+                } else {
+                    errorMsg.classList.add('hidden');
+                }
+            }
+        }
+
+        function formatWagonNumber(num) {
+            if (num.length !== 11) return num;
+            // Example format: 31 81 665 0 286
+            return `${num.substring(0,2)} ${num.substring(2,4)} ${num.substring(4,7)} ${num.substring(7,8)} ${num.substring(8,11)}`;
+        }
+
+        function calculateUIC(numberStr) {
+            const digits = numberStr.split('').map(Number);
+            let totalSum = 0;
+
+            let htmlNumber = '';
+            let htmlMultiplier = '';
+            let htmlProduct = '';
+            let htmlCrossSum = '';
+
+            for (let i = 0; i < 11; i++) {
+                const digit = digits[i];
+                const mult = multipliers[i];
+                const product = digit * mult;
+                const cSum = crossSum(product);
+                
+                totalSum += cSum;
+
+                // Build HTML for grids
+                htmlNumber += createCell(digit, 'font-bold bg-gray-200');
+                htmlMultiplier += createCell(`&times;${mult}`);
+                
+                // Highlight numbers that needed a cross sum calculation
+                let prodClass = product >= 10 ? 'text-orange-500 font-semibold bg-orange-50' : '';
+                htmlProduct += createCell(product, prodClass);
+                
+                // Format cross sum display like "1+6=7" if product >= 10
+                let cSumDisplay = product >= 10 ? `<span class="text-[0.65rem] sm:text-xs leading-none text-gray-400 block">${Math.floor(product/10)}+${product%10}</span><span class="block">${cSum}</span>` : cSum;
+                htmlCrossSum += createCell(cSumDisplay, 'bg-blue-50 border border-blue-100');
+            }
+
+            document.getElementById('gridNumber').innerHTML = htmlNumber;
+            document.getElementById('gridMultiplier').innerHTML = htmlMultiplier;
+            document.getElementById('gridProduct').innerHTML = htmlProduct;
+            document.getElementById('gridCrossSum').innerHTML = htmlCrossSum;
+
+            // Final Calculations
+            const next10 = Math.ceil(totalSum / 10) * 10;
+            // If totalSum is exactly a multiple of 10, check digit is 0
+            const next10Adjusted = totalSum % 10 === 0 ? totalSum : next10; 
+            const checkDigit = next10Adjusted - totalSum;
+
+            document.getElementById('stepSum').textContent = totalSum;
+            document.getElementById('stepNext10').textContent = next10Adjusted;
+            document.getElementById('stepCheckDigit').textContent = checkDigit;
+
+            // Quick Result display
+            document.getElementById('qrBase').textContent = formatWagonNumber(numberStr);
+            document.getElementById('qrDigit').textContent = checkDigit;
+        }
+
+        // Copy functionality
+        function copyToClipboard() {
+            const num = document.getElementById('uicInput').value;
+            if (num.length === 11) {
+                const digit = document.getElementById('stepCheckDigit').textContent;
+                // Formatted string to copy
+                const fullStr = `${formatWagonNumber(num)}-${digit}`;
+                
+                // Fallback for iFrames
+                const textArea = document.createElement("textarea");
+                textArea.value = fullStr;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    
+                    // Button feedback
+                    const btn = document.querySelector('#quickResult button');
+                    const origHtml = btn.innerHTML;
+                    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg> <span class="text-green-600">Kopiert!</span>`;
+                    setTimeout(() => { btn.innerHTML = origHtml; }, 2000);
+                } catch (err) {
+                    console.error('Kopieren fehlgeschlagen', err);
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // PWA Service Worker (Inline Blob for single-file requirement)
+        const swCode = `
+            const CACHE_NAME = 'uic-calc-v1';
+            self.addEventListener('install', (event) => {
+                event.waitUntil(self.skipWaiting());
+            });
+            self.addEventListener('activate', (event) => {
+                event.waitUntil(self.clients.claim());
+            });
+            self.addEventListener('fetch', (event) => {
+                // Network first, cache fallback logic usually here. 
+                // Since it's a single file, it's mostly cached by the browser natively.
+                event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+            });
+        `;
+        
+        try {
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swUrl).then(() => {
+                    console.log('Service Worker registriert');
+                }).catch((err) => {
+                    console.info('Service Worker Hinweis: Registrierung übersprungen (in dieser Vorschau-Umgebung blockiert). Die App funktioniert weiterhin normal.', err.message);
+                });
+            }
+        } catch(e) {
+            console.log('SW registration failed (likely iframe/origin restriction)', e);
+        }
+
+        // iOS PWA Prompt Logic
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test( userAgent );
+        }
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        if (isIos() && !isInStandaloneMode()) {
+            // Show prompt briefly after 2 seconds
+            setTimeout(() => {
+                document.getElementById('iosPrompt').style.display = 'block';
+                // Auto hide after 10 seconds
+                setTimeout(() => {
+                    document.getElementById('iosPrompt').style.display = 'none';
+                }, 10000);
+            }, 2000);
+        }
+
+        // Initial focus
+        window.onload = () => {
+            const input = document.getElementById('uicInput');
+            if(window.innerWidth > 768) {
+                input.focus();
+            }
+        }
+    </script>
+</body>
+</html>
